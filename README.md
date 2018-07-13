@@ -7,7 +7,7 @@ go get -u github.com/y0za/interfake
 ```
 
 ## To Be Implemented
-The following featureas are not yet supported.
+The following features are not yet supported.
 - multiple interfaces of `--target` option
 - embedded interface
 - variadic function
