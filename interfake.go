@@ -38,7 +38,16 @@ func main() {
 
 	output := os.Stdout
 	if *outputOption != "" {
-		output, err = os.Create(*outputOption)
+		abs, err := filepath.Abs(*outputOption)
+		if err != nil {
+			log.Fatalf("failed identifying output parent directory: %v", err)
+		}
+		dir := filepath.Dir(abs)
+		err = os.MkdirAll(dir, 0777)
+		if err != nil {
+			log.Fatalf("failed making output parent directory: %v", err)
+		}
+		output, err = os.Create(abs)
 		if err != nil {
 			log.Fatalf("failed opening output file: %v", err)
 		}
