@@ -64,7 +64,7 @@ func (g *Generator) generateFakeImpl(intf *Interface, outputPackagePath string) 
 	for _, m := range intf.Methods {
 		fa := formalArgsString(m.Args, g.pt)
 		aa := actualArgsString(m.Args)
-		r := resultsString(m.Args, g.pt)
+		r := resultsString(m.Results, g.pt)
 
 		g.p("")
 		g.p("func (f *Fake%s) %s(%s)%s {", intf.Name, m.Name, fa, r)
