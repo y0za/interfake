@@ -2,6 +2,32 @@ package model
 
 import "testing"
 
+func TestNamedTypeString(t *testing.T) {
+	cases := []struct {
+		nt       NamedType
+		expected string
+	}{
+		{
+			NamedType{"", "Bar"},
+			"Bar",
+		},
+		{
+			NamedType{"foo", "Bar"},
+			"Foo.Bar",
+		},
+	}
+
+	pt := PackageTable{
+		"foo": "Foo",
+	}
+	for _, tt := range cases {
+		actual := tt.nt.String(pt)
+		if actual != tt.expected {
+			t.Errorf(`expected "%s" actual "%s"`, tt.expected, actual)
+		}
+	}
+}
+
 func TestPredeclaredTypeString(t *testing.T) {
 	cases := []struct {
 		pType    PredeclaredType
