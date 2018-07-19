@@ -2,7 +2,7 @@
 // https://github.com/golang/mock/blob/master/mockgen/model/model.go
 // This file contains copies and modifications.
 // Originaly under the Apache License, Version 2.0.
-package main
+package model
 
 import (
 	"fmt"

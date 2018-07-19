@@ -7,6 +7,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/y0za/interfake/model"
 )
 
 var (
@@ -67,7 +69,7 @@ func main() {
 	g.WriteTo(output)
 }
 
-func seekInterface(files []*GoFile, interfaceName string) (*Interface, string) {
+func seekInterface(files []*model.GoFile, interfaceName string) (*model.Interface, string) {
 	for _, f := range files {
 		for _, i := range f.Interfaces {
 			if i.Name == interfaceName {

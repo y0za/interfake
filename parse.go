@@ -14,6 +14,8 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+
+	"github.com/y0za/interfake/model"
 )
 
 type fileParser struct {
@@ -26,7 +28,7 @@ type namedInterface struct {
 	it   *ast.InterfaceType
 }
 
-func parsePackageDir(dir string) ([]*GoFile, error) {
+func parsePackageDir(dir string) ([]*model.GoFile, error) {
 	pkg, err := build.Default.ImportDir(dir, 0)
 	if err != nil {
 		return nil, err
@@ -52,8 +54,8 @@ func prefixFilesDir(dir string, names []string) []string {
 	return ret
 }
 
-func parseFiles(names []string, pkg string) ([]*GoFile, error) {
-	var goFiles []*GoFile
+func parseFiles(names []string, pkg string) ([]*model.GoFile, error) {
+	var goFiles []*model.GoFile
 
 	for _, name := range names {
 		if !strings.HasSuffix(name, ".go") {
@@ -82,7 +84,7 @@ func parseFiles(names []string, pkg string) ([]*GoFile, error) {
 	return goFiles, nil
 }
 
-func (p *fileParser) parseFile(file *ast.File, pkg string) (*GoFile, error) {
+func (p *fileParser) parseFile(file *ast.File, pkg string) (*model.GoFile, error) {
 	var err error
 
 	p.imports, err = importsOfFile(file)
@@ -90,7 +92,7 @@ func (p *fileParser) parseFile(file *ast.File, pkg string) (*GoFile, error) {
 		return nil, err
 	}
 
-	var is []*Interface
+	var is []*model.Interface
 	for _, ni := range interfacesOfFile(file) {
 		i, err := p.parseInterface(ni.name.String(), pkg, ni.it)
 		if err != nil {
@@ -99,21 +101,21 @@ func (p *fileParser) parseFile(file *ast.File, pkg string) (*GoFile, error) {
 		is = append(is, i)
 	}
 
-	return &GoFile{
+	return &model.GoFile{
 		PackageName: file.Name.String(),
 		Interfaces:  is,
 	}, nil
 }
 
-func (p *fileParser) parseInterface(name, pkg string, it *ast.InterfaceType) (*Interface, error) {
-	intf := &Interface{Name: name}
+func (p *fileParser) parseInterface(name, pkg string, it *ast.InterfaceType) (*model.Interface, error) {
+	intf := &model.Interface{Name: name}
 	for _, field := range it.Methods.List {
 		switch v := field.Type.(type) {
 		case *ast.FuncType:
 			if nn := len(field.Names); nn != 1 {
 				return nil, fmt.Errorf("expected one name for interface %v, got %d", intf.Name, nn)
 			}
-			m := &Method{
+			m := &model.Method{
 				Name: field.Names[0].String(),
 			}
 			var err error
@@ -129,7 +131,7 @@ func (p *fileParser) parseInterface(name, pkg string, it *ast.InterfaceType) (*I
 	return intf, nil
 }
 
-func (p *fileParser) parseFunc(pkg string, f *ast.FuncType) (args []*Parameter, results []*Parameter, err error) {
+func (p *fileParser) parseFunc(pkg string, f *ast.FuncType) (args []*model.Parameter, results []*model.Parameter, err error) {
 	if f.Params != nil {
 		args, err = p.parseFieldList(pkg, f.Params.List)
 		if err != nil {
@@ -145,8 +147,8 @@ func (p *fileParser) parseFunc(pkg string, f *ast.FuncType) (args []*Parameter, 
 	return
 }
 
-func (p *fileParser) parseFieldList(pkg string, fields []*ast.Field) ([]*Parameter, error) {
-	var ps []*Parameter
+func (p *fileParser) parseFieldList(pkg string, fields []*ast.Field) ([]*model.Parameter, error) {
+	var ps []*model.Parameter
 	for _, f := range fields {
 		t, err := p.parseType(pkg, f.Type)
 		if err != nil {
@@ -155,17 +157,17 @@ func (p *fileParser) parseFieldList(pkg string, fields []*ast.Field) ([]*Paramet
 
 		if len(f.Names) == 0 {
 			// anonymous arg
-			ps = append(ps, &Parameter{Type: t})
+			ps = append(ps, &model.Parameter{Type: t})
 			continue
 		}
 		for _, name := range f.Names {
-			ps = append(ps, &Parameter{Name: name.Name, Type: t})
+			ps = append(ps, &model.Parameter{Name: name.Name, Type: t})
 		}
 	}
 	return ps, nil
 }
 
-func (p *fileParser) parseType(pkg string, typ ast.Expr) (Type, error) {
+func (p *fileParser) parseType(pkg string, typ ast.Expr) (model.Type, error) {
 	switch v := typ.(type) {
 	case *ast.ArrayType:
 		ln := -1
@@ -181,29 +183,29 @@ func (p *fileParser) parseType(pkg string, typ ast.Expr) (Type, error) {
 			return nil, err
 		}
 		if ln == -1 {
-			return &SliceType{Type: t}, nil
+			return &model.SliceType{Type: t}, nil
 		} else {
-			return &ArrayType{Len: ln, Type: t}, nil
+			return &model.ArrayType{Len: ln, Type: t}, nil
 		}
 	case *ast.ChanType:
 		t, err := p.parseType(pkg, v.Value)
 		if err != nil {
 			return nil, err
 		}
-		var dir ChanDir
+		var dir model.ChanDir
 		if v.Dir == ast.SEND {
-			dir = SendDirection
+			dir = model.SendDirection
 		}
 		if v.Dir == ast.RECV {
-			dir = RecvDirection
+			dir = model.RecvDirection
 		}
-		return &ChanType{Direction: dir, Type: t}, nil
+		return &model.ChanType{Direction: dir, Type: t}, nil
 	case *ast.FuncType:
 		args, results, err := p.parseFunc(pkg, v)
 		if err != nil {
 			return nil, err
 		}
-		return &FuncType{Args: args, Results: results}, nil
+		return &model.FuncType{Args: args, Results: results}, nil
 	case *ast.Ident:
 		if v.IsExported() {
 			// `pkg` may be an aliased imported pkg
@@ -213,16 +215,16 @@ func (p *fileParser) parseType(pkg string, typ ast.Expr) (Type, error) {
 				pkg = maybeImportedPkg
 			}
 			// assume type in this package
-			return &NamedType{Package: pkg, Type: v.Name}, nil
+			return &model.NamedType{Package: pkg, Type: v.Name}, nil
 		} else {
 			// assume predeclared type
-			return PredeclaredType(v.Name), nil
+			return model.PredeclaredType(v.Name), nil
 		}
 	case *ast.InterfaceType:
 		if v.Methods != nil && len(v.Methods.List) > 0 {
 			return nil, p.errorf(v.Pos(), "can't handle non-empty unnamed interface types")
 		}
-		return PredeclaredType("interface{}"), nil
+		return model.PredeclaredType("interface{}"), nil
 	case *ast.MapType:
 		key, err := p.parseType(pkg, v.Key)
 		if err != nil {
@@ -232,25 +234,25 @@ func (p *fileParser) parseType(pkg string, typ ast.Expr) (Type, error) {
 		if err != nil {
 			return nil, err
 		}
-		return &MapType{Key: key, Value: value}, nil
+		return &model.MapType{Key: key, Value: value}, nil
 	case *ast.SelectorExpr:
 		pkgName := v.X.(*ast.Ident).String()
 		pkg, ok := p.imports[pkgName]
 		if !ok {
 			return nil, p.errorf(v.Pos(), "unknown package %q", pkgName)
 		}
-		return &NamedType{Package: pkg, Type: v.Sel.String()}, nil
+		return &model.NamedType{Package: pkg, Type: v.Sel.String()}, nil
 	case *ast.StarExpr:
 		t, err := p.parseType(pkg, v.X)
 		if err != nil {
 			return nil, err
 		}
-		return &PointerType{Type: t}, nil
+		return &model.PointerType{Type: t}, nil
 	case *ast.StructType:
 		if v.Fields != nil && len(v.Fields.List) > 0 {
 			return nil, p.errorf(v.Pos(), "can't handle non-empty unnamed struct types")
 		}
-		return PredeclaredType("struct{}"), nil
+		return model.PredeclaredType("struct{}"), nil
 	}
 
 	return nil, fmt.Errorf("don't know how to parse type %T", typ)
