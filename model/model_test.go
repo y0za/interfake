@@ -28,6 +28,32 @@ func TestNamedTypeString(t *testing.T) {
 	}
 }
 
+func TestPointerTypeString(t *testing.T) {
+	cases := []struct {
+		pType    PointerType
+		expected string
+	}{
+		{
+			PointerType{PredeclaredType("string")},
+			"*string",
+		},
+		{
+			PointerType{&NamedType{"foo", "Bar"}},
+			"*Foo.Bar",
+		},
+	}
+
+	pt := PackageTable{
+		"foo": "Foo",
+	}
+	for _, tt := range cases {
+		actual := tt.pType.String(pt)
+		if actual != tt.expected {
+			t.Errorf(`expected "%s" actual "%s"`, tt.expected, actual)
+		}
+	}
+}
+
 func TestPredeclaredTypeString(t *testing.T) {
 	cases := []struct {
 		pType    PredeclaredType
