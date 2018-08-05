@@ -53,6 +53,10 @@ func TestPredeclaredTypeString(t *testing.T) {
 			PredeclaredType("error"),
 			"error",
 		},
+		{
+			PredeclaredType("Bar"),
+			"Bar",
+		},
 	}
 
 	pt := PackageTable{}
